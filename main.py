@@ -1,52 +1,81 @@
 import asyncio
-import types
-from venv import logger
-
-from aiogram import F, Bot, Dispatcher, types
-from aiogram.filters import Command
-from aiogram.types import Message
-from redis import Redis 
+from dbm import dumb
+from mailbox import Message
+from pydoc import text
+from aiogram import F, Bot, Dispatcher, types, exceptions
 from loguru import logger
+from redis.asyncio import Redis
+from typing import Optional
 
-#токен бота + CHAT_ID для пересылки удалёных/измененных сообщений
+#from keyboard import link_markup
+
+
+# Инициализация бота и Redis
 bot = Bot(token="7952648091:AAHek5j-EREIfUiin6hHAZS59chG92jPED8")
 CHAT_ID = 1247834167
-
 dp = Dispatcher()
 
-#Создаем локальную бд для записи сообщений
 redis = Redis(
     host="localhost",
     port=6379,
-    password=None
+    password=None,
 )
 EX_TIME = 60 * 60 * 24 * 21  # 21 день
 
 
 
-# Command handler
-@dp.message(Command('start'))
-async def command_start_handler(message: Message):
-    await message.answer("Hello! I'm a bot created with aiogram.")
+async def set_message(message: types.Message) -> None:
+    """Сохраняет сообщение в Redis с истечением через EX_TIME."""
 
-#Сохраняем все сообщения
-async def set_message(message: types.Message):
     try:
-        redis.set(
+        await redis.set(
             f"{message.chat.id}:{message.message_id}",
             message.model_dump_json(),
             ex=EX_TIME,
         )
-        logger.info(f"Сообщение было сохранено: {message.chat.id}:{message.message_id}, {message.text}")
+        logger.info(f"Сообщение сохранено: {message.chat.id}:{message.message_id}, {message.text}")
 
     except Exception as error:
-        logger.error(f"Ошибка сохранения сообщения: {error}")
+        logger.error(f"Ошибка при сохранении сообщения: {error}")
 
-#получаем все сообщения
+
 @dp.business_message()
-async def handle_message(message: types.Message):
+async def handle_message(message: types.Message) -> None:
+    """Обработчик для входящих сообщений."""
     await set_message(message)
 
+
+@dp.edited_business_message()
+async def edited_message(message: types.Message):
+    """Обработка, запрись и отправка измененных сообщений"""
+    try:
+        model_dump = await redis.get(f"{message.chat.id}:{message.message_id}")
+        await set_message(message)
+
+        if not model_dump:
+            return
+        
+        original_message = types.Message.model_validate_json(model_dump)
+        if not original_message.from_user:
+            return
+        
+
+        #-----------изменить этот метод-------------#
+        await original_message.send_copy( #сделать отправку старых и новых сообщений, подписывать какой пользователь изменил это сообщение
+           chat_id=CHAT_ID,
+        ).as_(bot)
+        #-------------------------------------------#
+        
+        logger.info(f"Сообщение было изменено: {message.chat.id}:{message.message_id}, {message.text}")
+    
+    except Exception as error:
+        logger.error(f"Ошибка при сохранении измененного сообщения: {error}")
+
+
+async def copy_message(message: types.Message):
+    await message.send_copy(
+        chat_id=CHAT_ID,
+    ).as_(bot)
 
 
 
