@@ -76,6 +76,9 @@ async def edited_message(message: types.Message):
         logger.error(f"Ошибка при сохранении измененного сообщения: {error}")
 
 
+
+# сделать сохранение удалённых сообщений, сделать сохранение фотографий и кружков
+
 async def copy_message(message: types.Message):
     await message.send_copy(
         chat_id=CHAT_ID,
