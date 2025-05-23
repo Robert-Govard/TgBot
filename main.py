@@ -48,6 +48,7 @@ async def handle_message(message: types.Message) -> None:
 @dp.edited_business_message()
 async def edited_message(message: types.Message):
     """Обработка, запрись и отправка измененных сообщений"""
+    
     try:
         model_dump = await redis.get(f"{message.chat.id}:{message.message_id}")
         await set_message(message)
@@ -59,9 +60,12 @@ async def edited_message(message: types.Message):
         if not original_message.from_user:
             return
         
+        new_message = await original_message.answer(f"new massage: {message.text} \nold massage: {original_message.text} \nedited by tg://user?id={original_message.from_user.id}").as_(bot)
+        #Сделать так что бы бот отправлят это сообщение не ко всем подряд, а только в наш с ним чат 
+        
 
         #-----------изменить этот метод-------------#
-        await original_message.send_copy( #сделать отправку старых и новых сообщений, подписывать какой пользователь изменил это сообщение
+        await new_message.send_copy( #сделать отправку старых и новых сообщений, подписывать какой пользователь изменил это сообщение (DONE)
            chat_id=CHAT_ID,
         ).as_(bot)
         #-------------------------------------------#
