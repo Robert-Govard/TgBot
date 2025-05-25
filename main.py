@@ -1,18 +1,14 @@
 import asyncio
-from dbm import dumb
-from mailbox import Message
-from pydoc import text
-from aiogram import F, Bot, Dispatcher, types, exceptions
+from aiogram import Bot, Dispatcher, types
 from loguru import logger
 from redis.asyncio import Redis
-from typing import Optional
 
-#from keyboard import link_markup
+# from keyboard import link_markup
 
 
 # Инициализация бота и Redis
 bot = Bot(token="7952648091:AAHek5j-EREIfUiin6hHAZS59chG92jPED8")
-CHAT_ID = 1247834167
+CHAT_ID = 1137737453
 dp = Dispatcher()
 
 redis = Redis(
@@ -21,7 +17,6 @@ redis = Redis(
     password=None,
 )
 EX_TIME = 60 * 60 * 24 * 21  # 21 день
-
 
 
 async def set_message(message: types.Message) -> None:
@@ -33,7 +28,10 @@ async def set_message(message: types.Message) -> None:
             message.model_dump_json(),
             ex=EX_TIME,
         )
-        logger.info(f"Сообщение сохранено: {message.chat.id}:{message.message_id}, {message.text}")
+
+        logger.info(
+            f"Сообщение сохранено: {message.chat.id}:{message.message_id}, {message.text}"
+        )
 
     except Exception as error:
         logger.error(f"Ошибка при сохранении сообщения: {error}")
@@ -46,45 +44,39 @@ async def handle_message(message: types.Message) -> None:
 
 
 @dp.edited_business_message()
-async def edited_message(message: types.Message):
-    """Обработка, запрись и отправка измененных сообщений"""
-    
-    try:
-        model_dump = await redis.get(f"{message.chat.id}:{message.message_id}")
-        await set_message(message)
+async def edited_message(new_message: types.Message):
+    """
+    Обработка, запрись и отправка измененных сообщений
 
+    new_message - полученное новое сообщение, после изменений
+    original_message - старое сообщение, до изменений
+    """
+
+    try:
+        model_dump = await redis.get(f"{new_message.chat.id}:{new_message.message_id}")
+        await set_message(new_message)
         if not model_dump:
             return
-        
-        original_message = types.Message.model_validate_json(model_dump)
+
+        original_message = types.Message.model_validate_json(
+            model_dump
+        )  # старое сообщение(до изменений)
         if not original_message.from_user:
             return
-        
-        new_message = await original_message.answer(f"new massage: {message.text} \nold massage: {original_message.text} \nedited by tg://user?id={original_message.from_user.id}").as_(bot)
-        #Сделать так что бы бот отправлят это сообщение не ко всем подряд, а только в наш с ним чат 
-        
 
-        #-----------изменить этот метод-------------#
-        await new_message.send_copy( #сделать отправку старых и новых сообщений, подписывать какой пользователь изменил это сообщение (DONE)
-           chat_id=CHAT_ID,
-        ).as_(bot)
-        #-------------------------------------------#
+        # -----------изменить этот метод-------------#
         
-        logger.info(f"Сообщение было изменено: {message.chat.id}:{message.message_id}, {message.text}")
-    
+        # -------------------------------------------#
+
+        logger.info(
+            f"Сообщение было изменено: {new_message.chat.id}:{new_message.message_id}, {new_message.text}"
+        )
+
     except Exception as error:
         logger.error(f"Ошибка при сохранении измененного сообщения: {error}")
 
 
-
 # сделать сохранение удалённых сообщений, сделать сохранение фотографий и кружков
-
-async def copy_message(message: types.Message):
-    await message.send_copy(
-        chat_id=CHAT_ID,
-    ).as_(bot)
-
-
 
 
 # Run the bot
@@ -94,4 +86,3 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
-          
