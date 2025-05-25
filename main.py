@@ -1,4 +1,5 @@
 import asyncio
+from email import message
 from aiogram import Bot, Dispatcher, types
 from loguru import logger
 from redis.asyncio import Redis
@@ -29,8 +30,13 @@ async def set_message(message: types.Message) -> None:
             ex=EX_TIME,
         )
 
+        def isPhoto(message: types.Message):
+            if message.photo:
+                return "Photo"
+            return message.text
+
         logger.info(
-            f"Сообщение сохранено: {message.chat.id}:{message.message_id}, {message.text}"
+            f"Сообщение сохранено: {message.chat.id}:{message.message_id}, {isPhoto(message)}"
         )
 
     except Exception as error:
@@ -49,7 +55,7 @@ async def edited_message(new_message: types.Message):
     Обработка, запрись и отправка измененных сообщений
 
     new_message - полученное новое сообщение, после изменений
-    original_message - старое сообщение, до изменений
+    old_message - старое сообщение, до изменений
     """
 
     try:
@@ -58,18 +64,25 @@ async def edited_message(new_message: types.Message):
         if not model_dump:
             return
 
-        original_message = types.Message.model_validate_json(
-            model_dump
-        )  # старое сообщение(до изменений)
-        if not original_message.from_user:
+        # старое сообщение(до изменений)
+        old_message = types.Message.model_validate_json(model_dump)
+        if not old_message.from_user:
             return
 
         # -----------изменить этот метод-------------#
-        
+        await bot.send_message(CHAT_ID, "help")
+        #await old_message.send_copy(chat_id=CHAT_ID).as_(bot)
+
         # -------------------------------------------#
 
+        #проверка является ли сообщение фотографией, если да, то возвращается лог что это фото
+        def isPhoto(message: types.Message):
+            if message.photo:
+                return "Photo"
+            return message.text
+
         logger.info(
-            f"Сообщение было изменено: {new_message.chat.id}:{new_message.message_id}, {new_message.text}"
+            f"Сообщение было изменено: {new_message.chat.id}:{new_message.message_id}, {isPhoto(new_message)}"
         )
 
     except Exception as error:
