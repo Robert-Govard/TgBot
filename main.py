@@ -8,7 +8,7 @@ from redis.asyncio import Redis
 
 # Инициализация бота и Redis
 bot = Bot(token="7952648091:AAHek5j-EREIfUiin6hHAZS59chG92jPED8")
-CHAT_ID = 1137737453
+CHAT_ID = 1247834167
 dp = Dispatcher()
 
 redis = Redis(
