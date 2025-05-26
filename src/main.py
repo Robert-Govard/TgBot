@@ -1,10 +1,10 @@
 import asyncio
-from aiogram import Bot, Dispatcher, types
+from aiogram import F, Bot, Dispatcher, types, exceptions
 from loguru import logger
 from redis.asyncio import Redis
 
 from settings import settings
-
+from keyboard import Callbacks
 
 # Инициализация бота и Redis
 bot = Bot(token=settings.TOKEN.get_secret_value())
@@ -32,7 +32,7 @@ async def set_message(message: types.Message) -> None:
 
         def isPhoto(message: types.Message):
             if message.photo:
-                return "Photo"
+                return "Photo", message.from_user.first_name if message.from_user else None
             return message.text, (
                 message.from_user.first_name if message.from_user else None
             )
@@ -72,12 +72,13 @@ async def edited_message(new_message: types.Message):
             return
 
         if new_message.photo:
-            await bot.send_message(settings.USER_ID, f"Edited photo:")
+            await bot.send_message(settings.USER_ID, f"Edited photo by {new_message.from_user.first_name if new_message.from_user else None}:")
             await new_message.send_copy(settings.USER_ID).as_(bot)
-        await bot.send_message(
-            settings.USER_ID,
-            f"old message: {old_message.text} \nnew message: {new_message.text} \nuser: {new_message.from_user.first_name if new_message.from_user else None}",
-        )
+        else:
+            await bot.send_message(
+                settings.USER_ID,
+                f"Сообщение было изменено\n\nold message: {old_message.text} \nnew message: {new_message.text} \nuser: {new_message.from_user.first_name if new_message.from_user else None}",
+            )
 
         # проверка является ли сообщение фотографией, если да, то возвращается лог что это фото
         def isPhoto(message: types.Message):
@@ -86,7 +87,7 @@ async def edited_message(new_message: types.Message):
             return message.text
 
         logger.info(
-            f"Сообщение было изменено: {new_message.chat.id}:{new_message.message_id}, {isPhoto(new_message)}"
+            f"Сообщение было изменено: {new_message.chat.id}:{new_message.message_id}"
         )
 
     except Exception as error:
@@ -106,6 +107,43 @@ async def deleted_message(business_messages: types.BusinessMessagesDeleted):
         if not model_dump:
             continue
 
+        old_message = types.Message.model_validate_json(model_dump)
+        if not old_message.from_user:
+            continue
+
+        if old_message.photo:
+            await bot.send_message(settings.USER_ID, f"Deleted photo:")
+            await old_message.send_copy(settings.USER_ID).as_(bot)
+
+        send_copy = bot.send_message(settings.USER_ID, f"Удаленное сообщение: {old_message.text}\nuser: {old_message.from_user.first_name}")
+
+        try:
+            await send_copy
+            logger.info(f"Сообщение было удалено: {old_message.text}")
+        except exceptions.TelegramRetryAfter as exp:
+            logger.warning(f"Retry after {exp.retry_after} seconds")
+            logger.error(f"Сообщение было удалено, но возникла ошибка: {exp}")
+            await asyncio.sleep(exp.retry_after + 0.1)
+            await send_copy
+        finally:
+            await asyncio.sleep(0.1)
+
+        keys_to_delete.append(f"{business_messages.chat.id}:{message_id}")
+
+    if keys_to_delete:
+        await redis.delete(*keys_to_delete)
+
+
+@dp.callback_query(F.data == Callbacks.EMPTY)
+async def empty(query: types.CallbackQuery):
+    await query.answer()
+
+
+@dp.callback_query(F.data == Callbacks.CLOSE)
+async def close(query: types.CallbackQuery):
+    await query.answer()
+    if isinstance(query.message, types.Message):
+        await query.message.delete()
 
 
 # Run the bot
