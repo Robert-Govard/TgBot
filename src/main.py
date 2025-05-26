@@ -1,21 +1,21 @@
 import asyncio
 from email import message
+from multiprocessing.connection import Client
 from aiogram import Bot, Dispatcher, types
 from loguru import logger
 from redis.asyncio import Redis
 
-# from keyboard import link_markup
+from settings import settings
 
 
 # Инициализация бота и Redis
-bot = Bot(token="7952648091:AAHek5j-EREIfUiin6hHAZS59chG92jPED8")
-CHAT_ID = 1247834167
+bot = Bot(token=settings.TOKEN.get_secret_value())
 dp = Dispatcher()
 
 redis = Redis(
-    host="localhost",
-    port=6379,
-    password=None,
+    host=settings.REDIS_HOST,
+    port=settings.REDIS_PORT,
+    password=(settings.REDIS_PASSWORD.get_secret_value() if settings.REDIS_PASSWORD else None),
 )
 EX_TIME = 60 * 60 * 24 * 21  # 21 день
 
@@ -33,7 +33,7 @@ async def set_message(message: types.Message) -> None:
         def isPhoto(message: types.Message):
             if message.photo:
                 return "Photo"
-            return message.text
+            return message.text, message.from_user.first_name if message.from_user else None
 
         logger.info(
             f"Сообщение сохранено: {message.chat.id}:{message.message_id}, {isPhoto(message)}"
@@ -46,7 +46,7 @@ async def set_message(message: types.Message) -> None:
 @dp.business_message()
 async def handle_message(message: types.Message) -> None:
     """Обработчик для входящих сообщений."""
-    await set_message(message)
+    return await set_message(message)
 
 
 @dp.edited_business_message()
@@ -68,10 +68,19 @@ async def edited_message(new_message: types.Message):
         old_message = types.Message.model_validate_json(model_dump)
         if not old_message.from_user:
             return
+        
+        #Отправляет красивые сообщения
+        async def send_beautiful_mess(old_message: types.Message, new_message: types.Message):
+            """
+            Отправляет красивые сообщения:
+
+            old message - старое сообщение
+            new message - новое сообщение
+            nusername - имя пользователя, который изменил сообщение
+            """
 
         # -----------изменить этот метод-------------#
-        await bot.send_message(CHAT_ID, "help")
-        #await old_message.send_copy(chat_id=CHAT_ID).as_(bot)
+        await bot.send_message(settings.USER_ID, "womething to send")
 
         # -------------------------------------------#
 
