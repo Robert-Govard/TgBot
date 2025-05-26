@@ -1,6 +1,4 @@
 import asyncio
-from email import message
-from multiprocessing.connection import Client
 from aiogram import Bot, Dispatcher, types
 from loguru import logger
 from redis.asyncio import Redis
@@ -15,7 +13,9 @@ dp = Dispatcher()
 redis = Redis(
     host=settings.REDIS_HOST,
     port=settings.REDIS_PORT,
-    password=(settings.REDIS_PASSWORD.get_secret_value() if settings.REDIS_PASSWORD else None),
+    password=(
+        settings.REDIS_PASSWORD.get_secret_value() if settings.REDIS_PASSWORD else None
+    ),
 )
 EX_TIME = 60 * 60 * 24 * 21  # 21 день
 
@@ -33,7 +33,9 @@ async def set_message(message: types.Message) -> None:
         def isPhoto(message: types.Message):
             if message.photo:
                 return "Photo"
-            return message.text, message.from_user.first_name if message.from_user else None
+            return message.text, (
+                message.from_user.first_name if message.from_user else None
+            )
 
         logger.info(
             f"Сообщение сохранено: {message.chat.id}:{message.message_id}, {isPhoto(message)}"
@@ -68,23 +70,16 @@ async def edited_message(new_message: types.Message):
         old_message = types.Message.model_validate_json(model_dump)
         if not old_message.from_user:
             return
-        
-        #Отправляет красивые сообщения
-        async def send_beautiful_mess(old_message: types.Message, new_message: types.Message):
-            """
-            Отправляет красивые сообщения:
 
-            old message - старое сообщение
-            new message - новое сообщение
-            nusername - имя пользователя, который изменил сообщение
-            """
+        if new_message.photo:
+            await bot.send_message(settings.USER_ID, f"Edited photo:")
+            await new_message.send_copy(settings.USER_ID).as_(bot)
+        await bot.send_message(
+            settings.USER_ID,
+            f"old message: {old_message.text} \nnew message: {new_message.text} \nuser: {new_message.from_user.first_name if new_message.from_user else None}",
+        )
 
-        # -----------изменить этот метод-------------#
-        await bot.send_message(settings.USER_ID, "womething to send")
-
-        # -------------------------------------------#
-
-        #проверка является ли сообщение фотографией, если да, то возвращается лог что это фото
+        # проверка является ли сообщение фотографией, если да, то возвращается лог что это фото
         def isPhoto(message: types.Message):
             if message.photo:
                 return "Photo"
