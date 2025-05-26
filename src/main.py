@@ -94,6 +94,18 @@ async def edited_message(new_message: types.Message):
 
 
 # сделать сохранение удалённых сообщений, сделать сохранение фотографий и кружков
+@dp.deleted_business_messages()
+async def deleted_message(business_messages: types.BusinessMessagesDeleted):
+    pipe = redis.pipeline()
+    for message_id in business_messages.message_ids:
+        pipe.get(f"{business_messages.chat.id}:{message_id}")
+    messages_data = await pipe.execute()
+
+    keys_to_delete = []
+    for message_id, model_dump in zip(business_messages.message_ids, messages_data):
+        if not model_dump:
+            continue
+
 
 
 # Run the bot
