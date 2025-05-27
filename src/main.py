@@ -21,15 +21,6 @@ redis = Redis(
 )
 EX_TIME = 60 * 60 * 24 * 21  # 21 день
 
-@dp.message(Command("start"))
-async def get_user_id(message: Message):
-    try:
-        await message.answer(f"your user id: {message.from_user.id if message.from_user else None}") 
-        return message.from_user.id if message.from_user else None
-    
-    except Exception as error:
-        logger.error(f"Ошибка в получении user id: {error}")
-
 async def set_message(message: types.Message) -> None:
     """Сохраняет сообщение в Redis с истечением через EX_TIME."""
 
@@ -49,9 +40,9 @@ async def set_message(message: types.Message) -> None:
                 message.from_user.first_name if message.from_user else None
             )
 
-        logger.info(
-            f"Сообщение сохранено: {message.chat.id}:{message.message_id}, {isPhoto(message)}"
-        )
+        #logger.info(
+        #    f"Сообщение сохранено: {message.chat.id}:{message.message_id}, {isPhoto(message)}"
+        #)
 
     except Exception as error:
         logger.error(f"Ошибка при сохранении сообщения: {error}")
@@ -96,9 +87,9 @@ async def edited_message(new_message: types.Message):
                 parse_mode='HTML'
             )
 
-        logger.info(
-            f"Сообщение было изменено: {new_message.chat.id}:{new_message.message_id}"
-        )
+        #logger.info(
+        #    f"Сообщение было изменено: {new_message.chat.id}:{new_message.message_id}"
+        #)
 
     except Exception as error:
         logger.error(f"Ошибка при сохранении измененного сообщения: {error}")
@@ -147,7 +138,8 @@ async def deleted_message(business_messages: types.BusinessMessagesDeleted):
         if old_message.text:
             await bot.send_message(
                 settings.USER_ID,
-                f"Удаленное сообщение: {old_message.text}\nuser: {old_message.from_user.first_name}",
+                f"Удаленное сообщение: <blockquote>{old_message.text}</blockquote>\nuser: {old_message.from_user.first_name}",
+                parse_mode='HTML'
             )
 
         try:
