@@ -15,7 +15,6 @@ class Redis(Environment):
 class Bot(Environment):
     TOKEN: SecretStr = SecretStr("7952648091:AAHek5j-EREIfUiin6hHAZS59chG92jPED8")
 
-
 class Settings(Bot, Redis):
     USER_ID: int = 1247834167
 
