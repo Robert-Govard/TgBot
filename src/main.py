@@ -97,6 +97,13 @@ async def edited_message(new_message: types.Message):
 
 @dp.deleted_business_messages()
 async def deleted_message(business_messages: types.BusinessMessagesDeleted):
+    """
+    Обработчик удалённых сообщений. Проверяет тип отправленного сообщения, в случае удаления пересылает копию в чат с юзером
+    На вход получает сообщение от пользователя - business_messages
+    
+    old_message - Сообщение которое было удалено
+
+    """
     pipe = redis.pipeline()
     for message_id in business_messages.message_ids:
         pipe.get(f"{business_messages.chat.id}:{message_id}")
