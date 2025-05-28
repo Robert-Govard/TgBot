@@ -1,6 +1,5 @@
 import asyncio
 from aiogram import F, Bot, types, Dispatcher, exceptions
-from aiogram.filters import Command
 from loguru import logger
 from redis.asyncio import Redis
 
@@ -39,7 +38,7 @@ async def set_message(message: types.Message) -> None:
                 )
             return message.text, (
                 message.from_user.first_name if message.from_user else None
-            )
+            )                
 
         logger.info(
             f"Сообщение сохранено: {message.chat.id}:{message.message_id}, {isPhoto(message)}"
@@ -163,7 +162,6 @@ async def deleted_message(business_messages: types.BusinessMessagesDeleted):
 
     if keys_to_delete:
         await redis.delete(*keys_to_delete)
-
 
 @dp.callback_query(F.data == Callbacks.EMPTY)
 async def empty(query: types.CallbackQuery):
