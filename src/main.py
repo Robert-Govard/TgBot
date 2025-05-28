@@ -1,7 +1,5 @@
 import asyncio
 from aiogram import F, Bot, Dispatcher, types, exceptions
-from aiogram.types import Message
-from aiogram.filters import Command
 from loguru import logger
 from redis.asyncio import Redis
 
