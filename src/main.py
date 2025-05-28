@@ -1,5 +1,6 @@
 import asyncio
 from aiogram import F, Bot, types, Dispatcher, exceptions
+from aiogram.filters import Command
 from loguru import logger
 from redis.asyncio import Redis
 
@@ -10,8 +11,6 @@ from keyboard import Callbacks
 bot = Bot(token=settings.TOKEN.get_secret_value())
 dp = Dispatcher()
 
-async def
-
 redis = Redis(
     host=settings.REDIS_HOST,
     port=settings.REDIS_PORT,
@@ -21,14 +20,7 @@ redis = Redis(
 )
 EX_TIME = 60 * 60 * 24 * 21  # 21 день
 
-async def get_message(user_id: int) -> int | None:
-    try:
-        user_id = await redis.get(f"{user_id}")
-        await bot.send_message(user_id, "Hello")
-        return user_id
-    except Exception as error:
-        logger.error(f"Ошибка при получении user id: {error}")
-        return None
+
 
 async def set_message(message: types.Message) -> None:
     """Сохраняет сообщение в Redis с истечением через EX_TIME."""
