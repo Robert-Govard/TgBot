@@ -38,10 +38,6 @@ async def set_message(message: types.Message) -> None:
                 message.from_user.first_name if message.from_user else None
             )
 
-        #logger.info(
-        #    f"Сообщение сохранено: {message.chat.id}:{message.message_id}, {isPhoto(message)}"
-        #)
-
     except Exception as error:
         logger.error(f"Ошибка при сохранении сообщения: {error}")
 
@@ -84,10 +80,6 @@ async def edited_message(new_message: types.Message):
                 text=f'Сообщение было изменено\n\nold message:\n<blockquote>{old_message.text}</blockquote>new message: <blockquote>{new_message.text}</blockquote> \nuser: {new_message.from_user.first_name if new_message.from_user else None}',
                 parse_mode='HTML'
             )
-
-        #logger.info(
-        #    f"Сообщение было изменено: {new_message.chat.id}:{new_message.message_id}"
-        #)
 
     except Exception as error:
         logger.error(f"Ошибка при сохранении измененного сообщения: {error}")
