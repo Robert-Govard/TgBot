@@ -1,5 +1,4 @@
 import asyncio
-from email import message
 from aiogram import F, Bot, Dispatcher, types, exceptions
 from aiogram.filters import Command
 from loguru import logger
