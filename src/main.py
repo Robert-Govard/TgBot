@@ -1,6 +1,7 @@
 import asyncio
+from email import message
 from aiogram import F, Bot, Dispatcher, types, exceptions
-from click import Command
+from aiogram.filters import Command
 from loguru import logger
 from redis.asyncio import Redis
 
@@ -11,7 +12,9 @@ from keyboard import Callbacks
 bot = Bot(token=settings.TOKEN.get_secret_value())
 dp = Dispatcher()
 
-MY_USER_ID = None
+USER_ID = None
+
+admin_userid = 1247834167
 
 
 redis = Redis(
@@ -24,7 +27,6 @@ redis = Redis(
 EX_TIME = 60 * 60 * 24 * 21  # 21 день
 
 
-'''
 async def set_user_id(user_id: int, username: str | None) -> None:
     """
     Асинхронная функция, которая сохраняет сообщения после нажатия кнопки /start
@@ -42,21 +44,6 @@ async def set_user_id(user_id: int, username: str | None) -> None:
         logger.error(f"При сохранении {user_id} возникла ошибка {error}")
 
         
-
-async def load_user_id() -> None:
-    """
-    Загружает user id пользователей при старте бота
-    """
-
-    try:
-        user_ids_from_redis = await redis.get("user_ids")
-        logger.info("users loaded from redis")
-    except Exception as error:
-        logger.error(f"couldn't load users from redis {error}")
-'''
-
-        
-
 @dp.message(Command("start"))
 async def handle_start_command(message: types.Message) -> None:
     """
@@ -71,10 +58,15 @@ async def handle_start_command(message: types.Message) -> None:
     user_id = message.from_user.id
     username = message.from_user.username
 
-    #await set_user_id(user_id, username) 
+    global USER_ID
 
-    await message.answer(f"Hi, your user id: {user_id} \n"
-                         f"your username: @{username} \n")
+    USER_ID = user_id
+
+    await set_user_id(user_id, username) 
+
+    await message.answer(f"Привет {username}! \n"
+                         "Что бы бот работал его необходимо добавить в список бизнес ботов твоего профиля! \n\n"
+                         "Если бот начал отслежить изменения твоих сообщений, просто введи /start \n")
     logger.warning(f"User {username}:{user_id} started bot")
 
 
@@ -83,7 +75,7 @@ async def handle_start_command(message: types.Message) -> None:
 async def set_message(message: types.Message) -> None:
     """Сохраняет сообщения в Redis, кроме тех, которые были отправлены самими пользователем с истечением через EX_TIME."""
     
-    if message.from_user and message.from_user.id == MY_USER_ID:
+    if message.from_user and message.from_user.id == USER_ID:
         logger.info(f"Сообщение от {message.from_user.username}, пропускаем сохранение")
         return
     try:
@@ -96,7 +88,6 @@ async def set_message(message: types.Message) -> None:
 
     except Exception as error:
         logger.error(f"Ошибка при сохранении сообщения: {error}")
-
 
 @dp.business_message()
 async def handle_message(message: types.Message) -> None:
@@ -127,13 +118,13 @@ async def edited_message(new_message: types.Message):
         if new_message.photo:
             await bot.send_message(
                 settings.USER_ID,
-                f"Edited photo by {new_message.from_user.first_name if new_message.from_user else None}:",
+                f"Edited photo by {new_message.from_user.username if new_message.from_user else None}:",
             )
             await new_message.send_copy(settings.USER_ID).as_(bot)
         else:
             await bot.send_message(
                 chat_id=settings.USER_ID,
-                text=f'Сообщение было изменено\n\nold message:\n<blockquote>{old_message.text}</blockquote>new message: <blockquote>{new_message.text}</blockquote> \nuser: {new_message.from_user.first_name if new_message.from_user else None}',
+                text=f'Сообщение было изменено\n\nold message:\n<blockquote>{old_message.text}</blockquote>new message: <blockquote>{new_message.text}</blockquote> \nuser: @{new_message.from_user.username if new_message.from_user else None}',
                 parse_mode='HTML'
             )
 
@@ -162,36 +153,36 @@ async def deleted_message(business_messages: types.BusinessMessagesDeleted):
 
         old_message = types.Message.model_validate_json(model_dump)
         if not old_message.from_user:
-            continue
+            return
 
         if old_message.photo:
             await bot.send_message(
                 settings.USER_ID,
-                f"Deleted photo by {old_message.from_user.first_name}:",
+                f"Deleted photo by @{old_message.from_user.username}:",
             )
             await old_message.send_copy(settings.USER_ID).as_(bot)
         if old_message.voice:
             await bot.send_message(
                 settings.USER_ID,
-                f"Deleted voice message by {old_message.from_user.first_name}:",
+                f"Deleted voice message by @{old_message.from_user.username}:",
             )
             await old_message.send_copy(settings.USER_ID).as_(bot)
         if old_message.video_note:
             await bot.send_message(
                 settings.USER_ID,
-                f"Deleted video note by {old_message.from_user.first_name}:",
+                f"Deleted video note by @{old_message.from_user.username}:",
             )
             await old_message.send_copy(settings.USER_ID).as_(bot)
         if old_message.video:
             await bot.send_message(
                 settings.USER_ID,
-                f"Deleted video by {old_message.from_user.first_name}:",
+                f"Deleted video by @{old_message.from_user.username}:",
             )
             await old_message.send_copy(settings.USER_ID).as_(bot)
         if old_message.text:
             await bot.send_message(
                 settings.USER_ID,
-                f"Удаленное сообщение: <blockquote>{old_message.text}</blockquote>\nuser: {old_message.from_user.first_name}",
+                f"Удаленное сообщение: <blockquote>{old_message.text}</blockquote>\nuser: @{old_message.from_user.username}",
                 parse_mode='HTML'
             )
 
