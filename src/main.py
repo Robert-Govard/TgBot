@@ -1,5 +1,6 @@
 import asyncio
 from aiogram import F, Bot, Dispatcher, types, exceptions
+from click import Command
 from loguru import logger
 from redis.asyncio import Redis
 
@@ -10,6 +11,9 @@ from keyboard import Callbacks
 bot = Bot(token=settings.TOKEN.get_secret_value())
 dp = Dispatcher()
 
+MY_USER_ID = None
+
+
 redis = Redis(
     host=settings.REDIS_HOST,
     port=settings.REDIS_PORT,
@@ -19,24 +23,76 @@ redis = Redis(
 )
 EX_TIME = 60 * 60 * 24 * 21  # 21 день
 
-async def set_message(message: types.Message) -> None:
-    """Сохраняет сообщение в Redis с истечением через EX_TIME."""
 
+'''
+async def set_user_id(user_id: int, username: str | None) -> None:
+    """
+    Асинхронная функция, которая сохраняет сообщения после нажатия кнопки /start
+    в таблицу redis
+
+    Args:
+    user_id (int): ID пользователя Telegram
+    username (str): Имя пользователя Telegram
+    """
+
+    try:
+        await redis.set(f"{user_id}:{username}", "active", ex=EX_TIME)
+        logger.info(f"{user_id} сохранен в redis")
+    except Exception as error:
+        logger.error(f"При сохранении {user_id} возникла ошибка {error}")
+
+        
+
+async def load_user_id() -> None:
+    """
+    Загружает user id пользователей при старте бота
+    """
+
+    try:
+        user_ids_from_redis = await redis.get("user_ids")
+        logger.info("users loaded from redis")
+    except Exception as error:
+        logger.error(f"couldn't load users from redis {error}")
+'''
+
+        
+
+@dp.message(Command("start"))
+async def handle_start_command(message: types.Message) -> None:
+    """
+    Функция для получения user id от пользователя
+
+    Args:
+    message (types.Message): переменная для записи сообщений от пользователя
+    """
+
+    if not message.from_user:
+        return
+    user_id = message.from_user.id
+    username = message.from_user.username
+
+    #await set_user_id(user_id, username) 
+
+    await message.answer(f"Hi, your user id: {user_id} \n"
+                         f"your username: @{username} \n")
+    logger.warning(f"User {username}:{user_id} started bot")
+
+
+
+
+async def set_message(message: types.Message) -> None:
+    """Сохраняет сообщения в Redis, кроме тех, которые были отправлены самими пользователем с истечением через EX_TIME."""
+    
+    if message.from_user and message.from_user.id == MY_USER_ID:
+        logger.info(f"Сообщение от {message.from_user.username}, пропускаем сохранение")
+        return
     try:
         await redis.set(
             f"{message.chat.id}:{message.message_id}",
             message.model_dump_json(),
             ex=EX_TIME,
         )
-
-        def isPhoto(message: types.Message):
-            if message.photo:
-                return "Photo", (
-                    message.from_user.first_name if message.from_user else None
-                )
-            return message.text, (
-                message.from_user.first_name if message.from_user else None
-            )
+        logger.info("Message Saved")
 
     except Exception as error:
         logger.error(f"Ошибка при сохранении сообщения: {error}")
@@ -164,6 +220,7 @@ async def close(query: types.CallbackQuery):
     await query.answer()
     if isinstance(query.message, types.Message):
         await query.message.delete()
+
 
 # Run the bot
 async def main() -> None:
